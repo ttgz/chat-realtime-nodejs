@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .popup {
+            width: 500px;
+            height: 500px;
+            border-radius: 5%;
+            border: 1px solid black;
+            display: flex;
+        }
+
+        .col-left {
+            width: 150px;
+            height: 500px;
+            margin-left: 3%;
+            border-right: 1px solid black;
+        
+        }
+
+        .user-chat img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .user-chat span {
+            padding-bottom: 10px;
+        }
+
+        .col-right {
+            width: 100%;
+            height: 500px;
+            overflow-y: auto;
+        }
+
+        .my-message {
+            text-align: right;
+        }
+
+        .input-message {
+            position: fixed;
+        }
+        .focus{
+            background-color: grey;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>App Chat</h1>
+    <h3>Hello <%= user.name %>
+    </h3>
+    <div class="popup">
+        <div class="col-left">
+            <% for(const user_chat of users_inbox){%>
+
+                <div class="user-chat" data-id="<%= user_chat.id %>" data-roomid="<%=user_chat.roomId%>"
+                    onclick="loadChat(this.dataset.id,this.dataset.roomid,this)">
+                    <img src="https://static.vecteezy.com/system/resources/thumbnails/002/318/271/small_2x/user-profile-icon-free-vector.jpg"
+                        alt="">
+                    <div>
+                        <%= user_chat.name %>
+                    </div>
+                </div>
+                <% }%>
+
+        </div>
+        <div class="col-right">
+            <div id="messages" style="height:450px">
+
+            </div>
+            <div class="input-message">
+                <input type="hidden" id="input-room" value="">
+                <input type="hidden" id="user" value="<%=user.id%>">
+                <input type="text" id="input-send" data-user="<%=user.id%>"> <button id="btn-send" onclick="sendMessage(this.dataset.id)">Gửi</button>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = io();
+       
+        function sendMessage(id){
+            const message=document.getElementById('input-send').value;
+            const user = document.getElementById('input-send').dataset.user;
+            const room = id;
+            const sendMessage = {
+                message,
+                user_send:user,
+                room
+            }
+            socket.emit('send-message',sendMessage);
+        }
+        socket.on('received-message',(data)=>{
+ 
+            const id = document.getElementById('user').value;
+            if(data.user_send===id)
+                document.getElementById('messages').innerHTML+= `<div class="my-message" style="background-color:rgb(126, 162, 143)">  ${data.message} </div>`
+            else
+                document.getElementById('messages').innerHTML+= `<div> ${data.message} </div>`
+
+        })
+    </script>
+</body>
+<script>
+    function loadChat(idUser, idRoom,user) {
+        fetch(`/get-messages/${idRoom}`)
+            .then((data) => data.json())
+            .then((data) => {
+                let htmls = data.map((message) => {
+
+                    const my_message = idUser == message.user_send ? false : true;
+
+                    if (my_message) {
+                        return `<div class="my-message" style="background-color:rgb(126, 162, 143)"> ${message.message} </div>`;
+                    }
+                    return `<div> ${message.message}</div>`;
+                })
+                let users = document.getElementsByClassName('user-chat');
+ 
+                for(let user of users){
+                    user.classList.remove('focus');
+                }
+
+                user.classList.add('focus');
+                document.getElementById('messages').innerHTML = htmls.join('');
+                document.getElementById('btn-send').setAttribute('data-id', idRoom);
+                
+                socket.emit('joinRoom',{roomId:idRoom})
+            })
+    }
+
+
+    /*
+    function sendMessage(idRoom){
+        const message=document.getElementById('input-send').value;
+        const user = document.getElementById('input-send').dataset.user;
+        const sendMessage={
+            user_send: Number(user),
+            message,
+            room:Number(idRoom)
+        }
+        console.log(sendMessage);
+        fetch(`/send-message`,{
+            method:"POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(sendMessage)
+        })
+    }
+        */
+</script>
+
+</html>
